@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useHouse } from '../context/HouseContext'
 import { logOut } from '../services/authService'
@@ -11,28 +11,27 @@ const navLinks = [
 ]
 
 export default function Navbar() {
-  const { profile, setProfile } = useAuth()
+  const { profile } = useAuth()
   const { house } = useHouse()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
 
   const handleLogout = useCallback(async () => {
-    await logOut()
-    setProfile(null)
     setMenuOpen(false)
+    await logOut()
     navigate('/login')
-  }, [navigate, setProfile])
+  }, [navigate])
 
   const linkClass = ({ isActive }) =>
     `text-sm transition-colors ${isActive ? 'text-indigo-600 font-semibold' : 'text-gray-600 hover:text-indigo-600'}`
 
   return (
     <nav className="bg-white border-b border-gray-200">
-      <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-6">
-          <Link to="/dashboard" className="text-lg font-bold text-indigo-600 shrink-0">
+          <span className="text-lg font-bold text-indigo-600 shrink-0">
             {house?.name ?? 'RoomieFinance'}
-          </Link>
+          </span>
           <div className="hidden sm:flex items-center gap-4">
             {navLinks.map((l) => (
               <NavLink key={l.to} to={l.to} className={linkClass}>
@@ -50,7 +49,6 @@ export default function Navbar() {
           >
             Logout
           </button>
-          {/* Mobile hamburger */}
           <button
             onClick={() => setMenuOpen((o) => !o)}
             className="sm:hidden p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
@@ -65,7 +63,6 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* Mobile dropdown */}
       {menuOpen && (
         <div className="sm:hidden border-t border-gray-100 bg-white px-4 py-3 space-y-1">
           {navLinks.map((l) => (
@@ -82,9 +79,7 @@ export default function Navbar() {
           ))}
           <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
             <span className="text-sm text-gray-500">{profile?.displayName}</span>
-            <button onClick={handleLogout} className="text-sm text-red-500">
-              Logout
-            </button>
+            <button onClick={handleLogout} className="text-sm text-red-500">Logout</button>
           </div>
         </div>
       )}

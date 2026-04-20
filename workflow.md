@@ -1,174 +1,339 @@
-# RoomieFinance — Claude Code Build Prompt
+A Vite + React project called roomie-finance has already been scaffolded. Firebase, React Router v7, and Tailwind CSS v4 are already installed. The existing files include firebase.js, AuthContext.jsx, HouseContext.jsx, basic service files, and partial page implementations. You are building on top of this existing base — do not re-scaffold or re-install anything.
+
+What We're Building
+A real-time shared expense and chore manager for roommates. Users create a "house", invite members via a 6-digit code, log shared expenses with flexible split options, track net balances correctly, settle debts, rotate chores, and see a live activity feed.
+
+Ground Rules (Non-Negotiable, Follow in Every File)
+
+All components must be functional components using hooks only
+Folder structure: /components, /pages, /hooks, /context, /services, /utils
+AuthContext exposes: user, profile, setProfile, loading
+HouseContext exposes: house, members, loading
+All Firestore calls go inside /services files only — never import db directly in a component or page
+All forms must be controlled components — every input has a value and onChange tied to state
+Every useEffect that sets up a Firestore listener must return the unsubscribe function
+Use useMemo for all derived data (balances, filtered lists, computed totals)
+Use useCallback for every function that is passed as a prop to a child component
+Lazy load every page except Login and Signup using React.lazy — wrap all lazy routes in a single Suspense with a Spinner fallback
+Every .map() must use the Firestore document ID as the key
+Every async action must have: a loading boolean that disables the submit button, and an error string displayed near the action
+No inline styles anywhere — Tailwind utility classes only
+Keep components focused — if JSX exceeds ~80 lines, split it
+
+
+Firestore Collections — Exact Schema
+users/{uid}
+displayName: string
+email: string
+houseId: string | null
+houses/{houseId}
+name: string
+inviteCode: string
+members: string[]   ← array of uids
+createdAt: timestamp
+expenses/{expenseId}
+houseId: string
+title: string
+amount: number          ← total amount
+paidBy: string          ← uid
+splitType: "equal" | "exact" | "percentage"
+splits: { [uid]: number }  ← each person's share in rupees (always stored in rupees regardless of splitType)
+createdAt: timestamp
+settlements/{settlementId}
+houseId: string
+fromUid: string
+toUid: string
+amount: number
+createdAt: timestamp
+chores/{choreId}
+houseId: string
+title: string
+assignedTo: string      ← uid
+rotationOrder: string[] ← array of uids
+createdAt: timestamp
+activity/{activityId}
+houseId: string
+actorName: string
+message: string
+timestamp: timestamp
+
+Balance Model — Read This Carefully Before Writing Any Balance Code
+Balances are stored as a flat directed map: balances[debtorUid][creditorUid] = amount.
+This means: debtor owes creditor that amount in rupees.
+Rules:
+
+When an expense is added, for each person in splits (excluding paidBy), add splits[uid] to balances[uid][paidBy]
+When a settlement is recorded (fromUid paid toUid), subtract settlement.amount from balances[fromUid][toUid]. If the result goes negative, it means toUid now owes fromUid — flip it: set balances[toUid][fromUid] = Math.abs(result) and delete balances[fromUid][toUid]
+Never use alphabetical sorting of UIDs to determine direction. Always use explicit debtor/creditor keys
+The useBalances hook returns this map. Components read it by checking balances[currentUser][otherUid] (you owe them) and balances[otherUid][currentUser] (they owe you)
+Settlement amount must be capped at the actual debt. If you owe ₹200, the settle modal should pre-fill ₹200 and not allow submission above that amount
+
+
+⚠️ Important Instruction
+After completing each phase, stop completely and output:
+
+A list of every file created or modified
+A list of features that are now working
+A short list of things the user must manually test
+
+Do not proceed to the next phase until the user says "continue".
+
+Phase 0 — Audit & Fix Existing Files
+Read every existing file in the project. Then do the following:
+Fix App.jsx:
+
+Add the missing /chores route with a lazy-loaded Chores page
+Confirm all routes are: /login, /signup, /create-join, /dashboard, /expenses, /chores, /settle
+/login and /signup are public. All others use ProtectedRoute
+ProtectedRoute: if no user → /login. If user but no houseId → /create-join. Otherwise render children
+AuthRoute (for /create-join): if no user → /login. If user has houseId → /dashboard. Otherwise render children
+
+Fix HouseContext.jsx:
+
+Member profiles must not be re-fetched on every house snapshot. Fetch them once when the members array changes. Cache the result in a useRef keyed by the members array joined as a string. Only re-fetch if the members list actually changed
+Add a membersMap to the context value: an object of { [uid]: profile } for O(1) name lookup in components
+
+Fix AuthContext.jsx:
+
+After onAuthStateChanged fires with a user, re-fetch the Firestore profile inside the listener so that profile.houseId is always fresh. Do not rely on the cached profile for routing decisions
+
+Fix CreateJoin.jsx:
+
+After creating or joining a house, do not mutate setProfile locally. Instead call the getUserProfile service function and call setProfile with the full fresh profile object fetched from Firestore
 
-## What We're Building
-A real-time shared expense and chore manager for roommates. Users create a "house", invite members via a 6-digit code, log shared expenses that auto-split equally, track balances, settle debts, and rotate chores. Built entirely in React with Firebase as the backend.
+Fix ProtectedRoute.jsx and AuthRoute.jsx:
 
----
+Both must wait for loading === false before making any redirect decision. While loading, render Spinner only
 
-## Ground Rules (Follow Throughout Every Phase)
+Fix Navbar.jsx:
 
-- Stack: React (Vite), Firebase Auth + Firestore, React Router v6, Tailwind CSS
-- All components must be functional components using hooks
-- Folder structure must be: `/components`, `/pages`, `/hooks`, `/context`, `/services`, `/utils`
-- Use Context API for global state — AuthContext and HouseContext
-- All Firebase calls go inside `/services` files only — never call Firebase directly from a component
-- All forms must be controlled components
-- Use `useEffect` for all Firestore listeners, and always clean up with `return () => unsubscribe()`
-- Use `useMemo` for any derived calculations (especially balance math)
-- Use `useCallback` for any function passed as a prop
-- Lazy load all pages except Login and Signup using `React.lazy` and wrap in `Suspense`
-- Every list rendered with `.map()` must have a unique `key` (use Firestore doc IDs)
-- Every async action must have a loading state and an error state displayed in the UI
-- No inline styles — Tailwind classes only
-- Keep components small and reusable — if a chunk of UI repeats, extract it
+Remove setProfile from the logout handler. On logout, only call logOut() and navigate to /login. AuthContext's onAuthStateChanged will automatically set user and profile to null
+Add a NavLink to /chores
 
----
+Confirm vite.config.js uses both the React plugin and the Tailwind plugin. Do not change it if it already does.
 
-## Firestore Collections (Do Not Deviate)
+Phase 1 — Expense Splits Overhaul
+This is the most important phase. Replace the hardcoded equal split with a flexible 3-mode split system.
+Build /src/components/expenses/SplitEditor.jsx
+This is a self-contained component that receives members, totalAmount, splitType, splits, and onChange as props.
+It renders three tabs: Equal, Exact, Percentage.
+Equal tab:
 
-- `users` — one doc per user, contains displayName, email, houseId (null if not in a house)
-- `houses` — one doc per house, contains name, inviteCode, members array (array of uids)
-- `expenses` — one doc per expense, contains houseId, title, amount, paidBy uid, splitAmong array, perPersonShare, isSettled
-- `settlements` — one doc per settlement, contains houseId, fromUid, toUid, amount
-- `chores` — one doc per chore, contains houseId, title, assignedTo uid, rotationOrder array
-- `activity` — one doc per event, contains houseId, actorName, message, timestamp
+Show all members with checkboxes
+All checked by default
+The share shown next to each member is totalAmount / checkedCount, updated live as amount changes
+onChange fires with splits as { [uid]: totalAmount / checkedCount } for checked members only
 
----
+Exact tab:
 
-## ⚠️ Important Instruction for Claude Code
+Show all members with a number input each
+User types in rupee amounts per person
+Show a running total and highlight it red if it doesn't equal totalAmount
+Disable the submit button (via a valid prop returned from onChange) if amounts don't sum to total
+onChange fires with splits as { [uid]: enteredAmount } for members with a non-zero amount
 
-**After completing each phase, stop and list exactly:**
-1. Which files were created
-2. Which features are now working
-3. What the user should manually test before moving to the next phase
+Percentage tab:
 
-Do not start the next phase until told to continue.
+Show all members with a percentage input each
+Show running total percentage and highlight red if it doesn't equal 100
+Disable submit if percentages don't sum to 100
+Convert internally: splits[uid] = (percentage / 100) * totalAmount before calling onChange
+onChange fires with splits in rupees always
 
----
+Update /src/components/expenses/AddExpenseForm.jsx
 
-## Phase 0 — Project Setup
+Add splitType state defaulting to "equal"
+Add splits state (object)
+Add splitsValid state (boolean, defaults true)
+Render SplitEditor below the amount field, passing all required props
+On submit, validate splitsValid === true before proceeding
+Write to Firestore with splitType and splits map (in rupees)
+Remove perPersonShare and splitAmong — they no longer exist
 
-Scaffold a new Vite React project called `roomie-finance`. Install React Router v6, Firebase, and Tailwind CSS. Configure Tailwind. Create the full folder structure with empty placeholder files. Create the Firebase config file that reads all keys from environment variables. Add a `.env` file with placeholders for all Firebase keys and add it to `.gitignore`. Set up Firestore security rules so that only authenticated users can read and write documents inside a house they belong to. Do not build any UI yet.
+Update /src/services/expenseService.js
 
----
+addExpense now receives { title, amount, paidBy, splitType, splits } — no splitAmong, no perPersonShare
+Write splits directly as received (already in rupees)
 
-## Phase 1 — Authentication
+Update /src/components/expenses/ExpenseCard.jsx
 
-Build full email/password authentication using Firebase Auth.
+Display split breakdown: for each uid in splits, show memberName: ₹amount
+Use membersMap from HouseContext for O(1) name lookup
 
-Create AuthContext that listens to Firebase auth state changes using `onAuthStateChanged`. It should expose the Firebase user object, the Firestore user profile document, and a loading boolean. Wrap the entire app in AuthProvider. While loading, render nothing.
 
-Build a Signup page that takes displayName, email, and password. On signup, create the Firebase Auth user, update their display name, and create a document in the `users` collection with houseId set to null.
+Phase 2 — Balance Calculator Rewrite
+Delete the existing useBalances.js and rewrite it from scratch.
+/src/hooks/useBalances.js
+Subscribe to expenses and settlements in real time using onSnapshot.
 
-Build a Login page with email and password.
+Build the balance map as follows:
 
-Build a ProtectedRoute component. If the user is not logged in, redirect to `/login`. If the user is logged in but has no houseId, redirect to `/create-join`. Otherwise render the child.
+  const balances = {}  // balances[debtorUid][creditorUid] = rupeesOwed
 
-Set up React Router with routes for `/login`, `/signup`, `/create-join`, and a wildcard redirect to `/login`. All routes except login and signup must be wrapped in ProtectedRoute. All page-level components except Login and Signup must be lazy loaded.
+  function addDebt(debtor, creditor, amount) {
+    if (debtor === creditor || amount <= 0) return
 
-Build a reusable Spinner component used as the Suspense fallback.
+    // Check if creditor already owes debtor (reverse debt exists)
+    const reverse = balances[creditor]?.[debtor] ?? 0
+    if (reverse > 0) {
+      // Net off against reverse
+      const net = amount - reverse
+      if (net > 0) {
+        delete balances[creditor][debtor]
+        if (!balances[debtor]) balances[debtor] = {}
+        balances[debtor][creditor] = net
+      } else if (net < 0) {
+        balances[creditor][debtor] = -net
+      } else {
+        delete balances[creditor][debtor]
+      }
+    } else {
+      if (!balances[debtor]) balances[debtor] = {}
+      balances[debtor][creditor] = (balances[debtor][creditor] ?? 0) + amount
+    }
+  }
 
----
+  For each expense:
+    for (const [uid, share] of Object.entries(expense.splits)) {
+      addDebt(uid, expense.paidBy, share)
+    }
 
-## Phase 2 — House System
+  For each settlement:
+    addDebt(settlement.toUid, settlement.fromUid, settlement.amount)
 
-Build the Create/Join page. This is the first screen a logged-in user without a house sees.
+Wrap the entire map construction in useMemo. Return { balances, expenses, settlements }.
+/src/utils/balanceHelpers.js
+Export two functions:
 
-It has two tabs — "Create a House" and "Join with a Code".
+getAmountYouOwe(balances, currentUid, otherUid) → returns number (0 if no debt)
+getAmountTheyOwe(balances, currentUid, otherUid) → returns number (0 if no debt)
 
-Create tab: user enters a house name. On submit, generate a random 6-character alphanumeric invite code (avoid ambiguous characters like 0, O, I, 1), create a document in the `houses` collection with the user as the first member, and update the user's Firestore profile to store the houseId. Redirect to `/dashboard`.
+These are the only functions components should use to read balances. Never let components read the raw balances map directly.
+Update BalanceSummary.jsx
+Use getAmountYouOwe and getAmountTheyOwe for every row. Iterate over all members excluding the current user. Skip pairs where both values are 0.
 
-Join tab: user enters a 6-digit invite code. Auto-focus this input using `useRef` when the tab is selected. On submit, query Firestore for a house with that invite code, add the user's uid to the members array, update their Firestore profile with the houseId, write an activity document saying they joined, and redirect to `/dashboard`.
+Phase 3 — Settle Up Page Rewrite
+Update /src/pages/Settle.jsx
+Outstanding Balances section:
 
-Build HouseContext. It listens in real time to the house document using `onSnapshot`. It also fetches all member user profiles (one fetch per uid in the members array) and exposes house data, member profiles array, and a loading boolean. Wrap the app in HouseProvider inside AuthProvider.
+For each member (excluding current user), check getAmountYouOwe and getAmountTheyOwe
+If you owe them: show red "You owe ₹X" and a Settle Up button
+If they owe you: show green "Owes you ₹X" — no button
+Skip members where both are 0
 
-Build a minimal Navbar with the house name, the logged-in user's name, and a logout button. Show this on all protected pages.
+Update /src/components/settle/SettleModal.jsx
 
----
+Pre-fill amount with the exact debt amount
+Set max attribute on the amount input to the debt amount
+On change, if user types above the max, clamp it back and show "Cannot exceed ₹X"
+On confirm: call addSettlement. The amount is now guaranteed to be ≤ actual debt
 
-## Phase 3 — Expense Logging
+Update /src/services/settlementService.js
 
-Build the Expenses page.
+addSettlement signature unchanged. No changes needed here.
 
-Build an Add Expense form as a modal or slide-in panel. Fields: title (text), amount (number), paid by (dropdown of house members), split among (multi-select checkboxes of house members, all checked by default). On submit, calculate perPersonShare as amount divided by number of people in splitAmong. Write the expense document to Firestore. Also write an activity document saying who added what expense for how much. Close the panel after success.
 
-Build an Expense Card component showing title, amount, who paid, and how many people it's split among. Each card has a delete button. Deleting removes the Firestore document and writes an activity entry.
+Phase 4 — Dashboard Page
+/src/pages/Dashboard.jsx
+Two sections:
+Balances section — render BalanceSummary
+Activity Feed section — render ActivityFeed
+Show the house invite code somewhere visible on the dashboard (e.g. a small chip or card at the top): "Invite code: A3K9PZ — share with flatmates". Use house.inviteCode from HouseContext.
 
-Build the Expense List that fetches all expenses for the current houseId in real time using `onSnapshot`, ordered by createdAt descending. Render ExpenseCard for each. Show a loading spinner while fetching. Show an empty state message if no expenses exist.
+Phase 5 — Chores Page
+/src/services/choreService.js
 
-Lift the form open/close state up to the Expenses page — the page owns whether the form is visible, and passes a handler down to a button in the page header.
+subscribeToChores(houseId, callback) — real-time listener ordered by createdAt ascending
+addChore(houseId, title, members) — creates chore with rotationOrder = members.map(m => m.uid), assignedTo = rotationOrder[0]
+markChoreDone(houseId, choreId, currentRotationOrder, currentAssignedTo, actorName, choreTitle) — advances assignedTo to the next uid in rotationOrder, wraps around. Writes activity entry
+deleteChore(houseId, choreId) — deletes document
 
----
+/src/pages/Chores.jsx
 
-## Phase 4 — Balance Calculator
+Navbar at top
+"Add Chore" button in header — lifts form open/close state to the page
+Render ChoreBoard below
 
-Build the balance calculation logic inside a custom hook called `useBalances`. This hook reads the expenses list and settlements list. For every expense, for every person in splitAmong (excluding the payer), that person owes the payer perPersonShare. Aggregate all debts into net balances between pairs. Subtract any settlements from those balances. Expose the final net balance map.
+/src/components/chores/AddChoreForm.jsx
 
-Wrap this calculation in `useMemo` so it only recalculates when expenses or settlements change.
+Modal with a single text input for chore title
+On submit: call addChore with house.id, title, and members from HouseContext
+Show loading and error states
 
-Build the Balance Summary component for the Dashboard. For each net balance, display: "You owe [Name] ₹[amount]" or "[Name] owes you ₹[amount]" from the perspective of the logged-in user. If all balances are zero, show a "You're all settled up!" message.
+/src/components/chores/ChoreBoard.jsx
 
-Build the Dashboard page with two sections: Balance Summary at the top, Activity Feed below it.
+Subscribe to chores in real time
+For each chore, render a ChoreItem
 
----
+/src/components/chores/ChoreItem.jsx
 
-## Phase 5 — Settle Up
+Shows chore title and assigned person's name (look up from membersMap)
+"Mark Done" button — calls markChoreDone with useCallback
+Delete button — calls deleteChore with useCallback
+Shows loading state per chore (not global) using a local loading state
 
-Build the Settle page.
 
-Show a list of all non-zero balances involving the current user. For each balance where the current user owes someone, show a "Settle Up" button.
+Phase 6 — Activity Feed
+/src/components/ActivityFeed.jsx already exists. Verify it:
 
-Clicking Settle Up opens a modal pre-filled with the person's name and the amount owed. The user can edit the amount. On confirm, write a document to the `settlements` collection (fromUid, toUid, amount), write an activity entry saying the settlement happened, and close the modal.
+Uses onSnapshot with limit(20) and orderBy('timestamp', 'desc')
+Cleans up on unmount
+Shows loading, empty state, and list correctly
+Uses timeAgo from formatTime.js
 
-Build a Settlement History section below showing all past settlements for the house in reverse chronological order.
+If any of these are missing, fix them. Otherwise leave it.
 
----
+Phase 7 — UI Polish Pass
+Go through every page and component and apply the following:
+Loading states:
 
-## Phase 6 — Chore Rotation
+Every page that fetches data must show a Spinner while loading
+Every button that triggers an async action must show a text change ("Saving…", "Adding…") and be disabled during the action
 
-Build the Chores page.
+Error states:
 
-Build an Add Chore form. Fields: chore title. On submit, create a chore document in Firestore with the rotationOrder set to the current house members array and assignedTo set to the first member in that array.
+Every form must show errors inside a styled red box near the submit button
+Errors must clear when the user starts typing again (set error to "" in the onChange handler)
 
-Build a Chore Board that shows all chores for the house in real time. Each chore shows the title and who it's currently assigned to, using their display name from the members list.
+Empty states:
 
-Each chore has a "Mark as Done" button. When clicked, it advances the assignedTo to the next person in the rotationOrder (cycling back to the start after the last person), updates the chore document, and writes an activity entry.
+Expenses page: show an icon and "No expenses yet. Add the first one."
+Chores page: show an icon and "No chores yet. Add one to get started."
+Activity feed: show "No activity yet."
+Settle page (no balances): show "You're all settled up!"
 
-Each chore also has a delete button that removes it from Firestore.
+Responsive layout:
 
----
+All pages must work on 375px mobile width
+Navbar must collapse to a hamburger menu on mobile
+All modals must be full-screen bottom sheets on mobile (items-end on small screens, items-center on sm and above)
+All cards must stack vertically on mobile
 
-## Phase 7 — Activity Feed
+Consistency:
 
-Build the Activity Feed component. It listens in real time to the `activity` collection filtered by houseId, ordered by timestamp descending, limited to the 20 most recent entries.
+All primary buttons: bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-2 px-4 rounded-lg transition-colors
+All destructive buttons (delete): text-gray-300 hover:text-red-400 transition-colors
+All card containers: bg-white rounded-xl border border-gray-200
+All section headings: text-base font-semibold text-gray-700 mb-3
+Page max-width: max-w-2xl mx-auto px-4 py-8
 
-Render each activity as a single line: "[actorName] [message] · [relative time, e.g. 2 hours ago]".
 
-Display this feed on the Dashboard page below the Balance Summary.
+Phase 8 — Final Build Check
+Run through this checklist and fix anything that fails:
 
----
-
-## Phase 8 — Polish & Final Checklist
-
-Go through every page and ensure:
-- All loading states show a spinner
-- All error states show a readable error message near the relevant action
-- All empty states (no expenses, no chores, no activity) show a helpful message
-- The app is fully responsive — works on mobile widths (375px) and desktop widths
-- The Navbar shows correctly on all protected pages
-- Logout clears all state and redirects to login
-- Protected routes correctly redirect unauthenticated users
-- React.lazy and Suspense are confirmed working (check Network tab for code splitting)
-- No console errors or warnings in production build
-
-Run `npm run build` and confirm it compiles with no errors. Deploy to Vercel or Netlify.
-
----
-
-## Final Deliverable Checklist
-
-- [ ] GitHub repo with clean commit history (one commit per phase minimum)
-- [ ] README with: problem statement, features list, tech stack, setup instructions, live link
-- [ ] `.env.example` file with placeholder keys (not real keys)
-- [ ] Live deployment link
-- [ ] 3–5 minute demo video covering: the problem, create/join flow, adding an expense, viewing balances, settling up, chore rotation, activity feed
+ npm run build completes with zero errors and zero warnings
+ Open Network tab in browser — confirm separate JS chunks load for lazy pages (Dashboard, Expenses, Chores, Settle)
+ Sign up as User A → create a house → note the invite code
+ Sign up as User B in another tab → join with the invite code → confirm both users appear in the house
+ User A adds an expense with equal split → confirm it appears for both users in real time
+ User A adds an expense with exact split (unequal amounts) → confirm splits are stored and displayed correctly
+ User A adds an expense with percentage split → confirm rupee amounts are calculated and stored correctly
+ Settle page shows correct "you owe" direction for both users
+ User B settles up → confirm balance drops to zero, not negative
+ Settle modal does not allow amount above actual debt
+ Add a chore → mark it done → confirm it rotates to the next person
+ Delete an expense → confirm it disappears in real time for both users
+ Activity feed shows all events in correct order
+ Log out → confirm redirect to login → confirm back button does not show protected pages
+ Resize to 375px → confirm all pages are usable on mobile
+ Invite code is visible on the Dashboard

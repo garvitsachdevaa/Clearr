@@ -2,19 +2,17 @@ import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { createHouse, joinHouse } from '../services/houseService'
+import { getUserProfile } from '../services/authService'
 import { generateInviteCode } from '../utils/generateInviteCode'
 
 export default function CreateJoin() {
-  const { user, profile, setProfile } = useAuth()
+  const { user, setProfile } = useAuth()
   const navigate = useNavigate()
   const [tab, setTab] = useState('create')
-
   const [houseName, setHouseName] = useState('')
   const [inviteInput, setInviteInput] = useState('')
-
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-
   const codeInputRef = useRef(null)
 
   function switchTab(t) {
@@ -29,8 +27,9 @@ export default function CreateJoin() {
     setLoading(true)
     try {
       const code = generateInviteCode()
-      const houseId = await createHouse(user.uid, houseName.trim(), code)
-      setProfile((prev) => ({ ...prev, houseId }))
+      await createHouse(user.uid, houseName.trim(), code)
+      const fresh = await getUserProfile(user.uid)
+      setProfile(fresh)
       navigate('/dashboard')
     } catch (err) {
       setError(err.message)
@@ -44,9 +43,10 @@ export default function CreateJoin() {
     setError('')
     setLoading(true)
     try {
-      const displayName = profile?.displayName ?? user.displayName ?? 'Someone'
-      const houseId = await joinHouse(user.uid, displayName, inviteInput.trim())
-      setProfile((prev) => ({ ...prev, houseId }))
+      const displayName = user.displayName ?? 'Someone'
+      await joinHouse(user.uid, displayName, inviteInput.trim())
+      const fresh = await getUserProfile(user.uid)
+      setProfile(fresh)
       navigate('/dashboard')
     } catch (err) {
       setError(err.message)
@@ -60,7 +60,6 @@ export default function CreateJoin() {
       <div className="w-full max-w-md bg-white rounded-2xl shadow-md p-8">
         <h1 className="text-2xl font-bold text-gray-800 mb-6 text-center">Get started</h1>
 
-        {/* Tabs */}
         <div className="flex rounded-lg bg-gray-100 p-1 mb-6">
           {['create', 'join'].map((t) => (
             <button
@@ -88,7 +87,7 @@ export default function CreateJoin() {
               <input
                 type="text"
                 value={houseName}
-                onChange={(e) => setHouseName(e.target.value)}
+                onChange={(e) => { setHouseName(e.target.value); setError('') }}
                 required
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
                 placeholder="e.g. The Loft"
@@ -110,7 +109,7 @@ export default function CreateJoin() {
                 ref={codeInputRef}
                 type="text"
                 value={inviteInput}
-                onChange={(e) => setInviteInput(e.target.value.toUpperCase())}
+                onChange={(e) => { setInviteInput(e.target.value.toUpperCase()); setError('') }}
                 required
                 maxLength={6}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono tracking-widest uppercase focus:outline-none focus:ring-2 focus:ring-indigo-400"

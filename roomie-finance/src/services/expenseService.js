@@ -22,16 +22,14 @@ export function subscribeToExpenses(houseId, callback) {
   })
 }
 
-export async function addExpense(houseId, { title, amount, paidBy, splitAmong }, actorName) {
-  const perPersonShare = amount / splitAmong.length
+export async function addExpense(houseId, { title, amount, paidBy, splitType, splits }, actorName) {
   await addDoc(collection(db, 'expenses'), {
     houseId,
     title,
     amount,
     paidBy,
-    splitAmong,
-    perPersonShare,
-    isSettled: false,
+    splitType,
+    splits,
     createdAt: serverTimestamp(),
   })
   await addDoc(collection(db, 'activity'), {

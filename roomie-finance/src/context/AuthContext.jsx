@@ -14,6 +14,7 @@ export function AuthProvider({ children }) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser)
       if (firebaseUser) {
+        // Always re-fetch from Firestore so houseId is always fresh
         const p = await getUserProfile(firebaseUser.uid)
         setProfile(p)
       } else {

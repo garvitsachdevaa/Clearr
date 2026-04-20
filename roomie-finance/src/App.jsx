@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext'
 import { HouseProvider } from './context/HouseContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import AuthRoute from './components/AuthRoute'
+import AppLayout from './components/AppLayout'
 import Spinner from './components/Spinner'
 import Login from './pages/Login'
 import Signup from './pages/Signup'
@@ -18,47 +19,32 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <HouseProvider>
-        <Suspense fallback={<Spinner />}>
           <Routes>
+            {/* Public routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
-
             <Route
               path="/create-join"
               element={
                 <AuthRoute>
-                  <CreateJoin />
+                  <Suspense fallback={<Spinner />}>
+                    <CreateJoin />
+                  </Suspense>
                 </AuthRoute>
               }
             />
 
-            <Route
-              path="/dashboard"
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/expenses"
-              element={
-                <ProtectedRoute>
-                  <Expenses />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/settle"
-              element={
-                <ProtectedRoute>
-                  <Settle />
-                </ProtectedRoute>
-              }
-            />
+            {/* Protected routes — Navbar stays visible during lazy loads */}
+            <Route element={<ProtectedRoute />}>
+              <Route element={<AppLayout />}>
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/expenses" element={<Expenses />} />
+                <Route path="/settle" element={<Settle />} />
+              </Route>
+            </Route>
+
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
-        </Suspense>
         </HouseProvider>
       </AuthProvider>
     </BrowserRouter>

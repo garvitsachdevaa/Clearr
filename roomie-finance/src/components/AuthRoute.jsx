@@ -1,12 +1,11 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import Spinner from './Spinner'
 
-// Requires the user to be logged in, but does NOT require a houseId.
-// If they already have a house, send them to the dashboard.
 export default function AuthRoute({ children }) {
   const { user, profile, loading } = useAuth()
 
-  if (loading) return null
+  if (loading) return <Spinner />
 
   if (!user) return <Navigate to="/login" replace />
 

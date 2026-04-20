@@ -45,6 +45,7 @@ export default function Chores() {
   const [title, setTitle] = useState('')
   const [adding, setAdding] = useState(false)
   const [formError, setFormError] = useState('')
+  const [actionError, setActionError] = useState('')
 
   useEffect(() => {
     if (!house?.id) return
@@ -76,6 +77,7 @@ export default function Chores() {
     const nextUid = chore.rotationOrder[nextIdx]
     const nextName = members.find((m) => m.uid === nextUid)?.displayName ?? 'Someone'
     try {
+      setActionError('')
       await markChoreDone(
         house.id,
         chore,
@@ -83,16 +85,17 @@ export default function Chores() {
         nextName
       )
     } catch (err) {
-      alert(err.message)
+      setActionError(err.message)
     }
   }, [house?.id, members, profile, user.displayName])
 
   const handleDelete = useCallback(async (chore) => {
     if (!confirm(`Delete "${chore.title}"?`)) return
     try {
+      setActionError('')
       await deleteChore(house.id, chore.id, chore.title, profile?.displayName ?? user.displayName)
     } catch (err) {
-      alert(err.message)
+      setActionError(err.message)
     }
   }, [house?.id, profile, user.displayName])
 
@@ -120,9 +123,8 @@ export default function Chores() {
             {adding ? '…' : '+ Add'}
           </button>
         </form>
-        {formError && (
-          <p className="text-sm text-red-600">{formError}</p>
-        )}
+        {formError && <p className="text-sm text-red-600">{formError}</p>}
+        {actionError && <p className="text-sm text-red-600">{actionError}</p>}
 
         {/* Chore board */}
         {loading ? (

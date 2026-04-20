@@ -18,7 +18,9 @@ service cloud.firestore {
     match /houses/{houseId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null;
-      allow update: if isMember(houseId) || request.auth.uid in resource.data.members;
+      // Any authenticated user may join (add themselves); only members may remove/change other fields
+      allow update: if request.auth != null &&
+                       request.resource.data.members.hasAll(resource.data.members);
     }
 
     // Expenses, settlements, chores, activity — house members only

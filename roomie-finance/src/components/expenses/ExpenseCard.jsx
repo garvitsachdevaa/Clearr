@@ -1,24 +1,46 @@
 import { useCallback, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useHouse } from '../../context/HouseContext'
-import { deleteExpense } from '../../services/expenseService'
+import { settleExpense } from '../../services/expenseService'
 
 export default function ExpenseCard({ expense }) {
   const { user, profile } = useAuth()
   const { house, membersMap } = useHouse()
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
 
   const payer = membersMap[expense.paidBy]
+  const involvedUids = Object.keys(expense.splits ?? {})
+  const settledBy = expense.settledBy ?? []
+  const currentUserSettled = settledBy.includes(user.uid)
+  const fullySettled = involvedUids.length > 0 && involvedUids.every((uid) => settledBy.includes(uid))
 
-  const handleDelete = useCallback(async () => {
-    if (!confirm(`Delete "${expense.title}"?`)) return
+  const handleSettle = useCallback(async () => {
+    if (currentUserSettled || fullySettled) return
     setError('')
+    setLoading(true)
     try {
-      await deleteExpense(house.id, expense.id, expense.title, profile?.displayName ?? user.displayName)
+      await settleExpense(
+        house.id,
+        expense.id,
+        expense.title,
+        user.uid,
+        profile?.displayName ?? user.displayName
+      )
     } catch (err) {
       setError(err.message)
+    } finally {
+      setLoading(false)
     }
-  }, [expense, house.id, profile, user.displayName])
+  }, [currentUserSettled, fullySettled, house.id, expense, user, profile])
+
+  const settleLabel = fullySettled
+    ? 'Settled'
+    : currentUserSettled
+    ? 'Awaiting others'
+    : 'Mark settled'
+
+  const settleDisabled = currentUserSettled || fullySettled || loading
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 px-4 py-3">
@@ -36,14 +58,20 @@ export default function ExpenseCard({ expense }) {
             ))}
           </div>
         </div>
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex flex-col items-end gap-2 shrink-0">
           <span className="text-base font-semibold text-indigo-600">₹{expense.amount.toFixed(2)}</span>
           <button
-            onClick={handleDelete}
-            className="text-gray-300 hover:text-red-400 transition-colors text-lg leading-none"
-            title="Delete"
+            onClick={handleSettle}
+            disabled={settleDisabled}
+            className={`text-xs px-3 py-1 rounded-full border font-medium transition-colors ${
+              fullySettled
+                ? 'bg-green-100 text-green-600 border-green-200 cursor-default'
+                : currentUserSettled
+                ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-default'
+                : 'bg-white text-indigo-600 border-indigo-300 hover:bg-indigo-50'
+            }`}
           >
-            &times;
+            {loading ? '…' : settleLabel}
           </button>
         </div>
       </div>

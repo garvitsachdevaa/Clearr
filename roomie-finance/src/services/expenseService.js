@@ -8,6 +8,8 @@ import {
   orderBy,
   onSnapshot,
   serverTimestamp,
+  updateDoc,
+  arrayUnion,
 } from 'firebase/firestore'
 import { db } from './firebase'
 
@@ -48,6 +50,18 @@ export async function deleteExpense(houseId, expenseId, title, actorName) {
     houseId,
     actorName,
     message: `deleted expense "${title}"`,
+    timestamp: serverTimestamp(),
+  })
+}
+
+export async function settleExpense(houseId, expenseId, title, uid, actorName) {
+  await updateDoc(doc(db, 'expenses', expenseId), {
+    settledBy: arrayUnion(uid),
+  })
+  await addDoc(collection(db, 'activity'), {
+    houseId,
+    actorName,
+    message: `marked expense "${title}" as settled`,
     timestamp: serverTimestamp(),
   })
 }

@@ -12,11 +12,13 @@ import { db } from './firebase'
 export function subscribeToSettlements(houseId, callback) {
   const q = query(
     collection(db, 'settlements'),
-    where('houseId', '==', houseId),
-    orderBy('createdAt', 'desc')
+    where('houseId', '==', houseId)
   )
   return onSnapshot(q, (snap) => {
-    callback(snap.docs.map((d) => ({ id: d.id, ...d.data() })))
+    const docs = snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0))
+    callback(docs)
   })
 }
 

@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users can read/write their own profile
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Helper: check if the requesting user is a member of the given house
+    function isMember(houseId) {
+      return request.auth != null &&
+        request.auth.uid in get(/databases/$(database)/documents/houses/$(houseId)).data.members;
+    }
+
+    // Houses: members can read; any authenticated user can create;
+    // only members can update (join / modify)
+    match /houses/{houseId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if isMember(houseId) || request.auth.uid in resource.data.members;
+    }
+
+    // Expenses, settlements, chores, activity — house members only
+    match /expenses/{docId} {
+      allow read, write: if isMember(resource.data.houseId) ||
+                            isMember(request.resource.data.houseId);
+    }
+
+    match /settlements/{docId} {
+      allow read, write: if isMember(resource.data.houseId) ||
+                            isMember(request.resource.data.houseId);
+    }
+
+    match /chores/{docId} {
+      allow read, write: if isMember(resource.data.houseId) ||
+                            isMember(request.resource.data.houseId);
+    }
+
+    match /activity/{docId} {
+      allow read, write: if isMember(resource.data.houseId) ||
+                            isMember(request.resource.data.houseId);
+    }
+  }
+}

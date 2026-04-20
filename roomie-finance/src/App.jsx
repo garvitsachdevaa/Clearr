@@ -12,7 +12,6 @@ const CreateJoin = lazy(() => import('./pages/CreateJoin'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const Expenses = lazy(() => import('./pages/Expenses'))
 const Settle = lazy(() => import('./pages/Settle'))
-const Chores = lazy(() => import('./pages/Chores'))
 
 export default function App() {
   return (
@@ -57,15 +56,6 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/chores"
-              element={
-                <ProtectedRoute>
-                  <Chores />
-                </ProtectedRoute>
-              }
-            />
-
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
         </Suspense>

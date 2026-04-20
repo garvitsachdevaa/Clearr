@@ -8,7 +8,6 @@ const navLinks = [
   { to: '/dashboard', label: 'Dashboard' },
   { to: '/expenses', label: 'Expenses' },
   { to: '/settle', label: 'Settle' },
-  { to: '/chores', label: 'Chores' },
 ]
 
 export default function Navbar() {

@@ -1,8 +1,9 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useHouse } from '../context/HouseContext'
 import { logOut } from '../services/authService'
+import Avatar from './ui/Avatar'
 
 const navLinks = [
   { to: '/dashboard', label: 'Dashboard' },
@@ -15,43 +16,82 @@ export default function Navbar() {
   const { house } = useHouse()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const dropdownRef = useRef(null)
 
   const handleLogout = useCallback(async () => {
+    setDropdownOpen(false)
     setMenuOpen(false)
     await logOut()
     navigate('/login')
   }, [navigate])
 
-  const linkClass = ({ isActive }) =>
-    `text-sm transition-colors ${isActive ? 'text-indigo-600 font-semibold' : 'text-gray-600 hover:text-indigo-600'}`
+  useEffect(() => {
+    if (!dropdownOpen) return
+    function handleClick(e) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setDropdownOpen(false)
+      }
+    }
+    document.addEventListener('click', handleClick)
+    return () => document.removeEventListener('click', handleClick)
+  }, [dropdownOpen])
+
+  const displayName = profile?.displayName ?? ''
 
   return (
-    <nav className="bg-white border-b border-gray-200">
-      <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-6">
-          <span className="text-lg font-bold text-indigo-600 shrink-0">
+    <nav className="bg-white border-b border-zinc-200 sticky top-0 z-40">
+      <div className="max-w-2xl mx-auto px-4 h-14 flex items-center justify-between">
+        <div className="flex items-center">
+          <span className="text-sm font-bold text-zinc-900 shrink-0">
             {house?.name ?? 'RoomieFinance'}
           </span>
-          <div className="hidden sm:flex items-center gap-4">
+          <div className="hidden sm:flex items-center gap-1 ml-6">
             {navLinks.map((l) => (
-              <NavLink key={l.to} to={l.to} className={linkClass}>
+              <NavLink
+                key={l.to}
+                to={l.to}
+                className={({ isActive }) =>
+                  `text-sm px-3 py-1.5 rounded-lg font-medium transition-colors ${
+                    isActive
+                      ? 'bg-indigo-50 text-indigo-700 font-semibold'
+                      : 'text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100'
+                  }`
+                }
+              >
                 {l.label}
               </NavLink>
             ))}
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-600 hidden sm:block">{profile?.displayName}</span>
-          <button
-            onClick={handleLogout}
-            className="hidden sm:block text-sm text-gray-500 hover:text-red-500 transition-colors"
-          >
-            Logout
-          </button>
+        <div className="flex items-center gap-2">
+          <div className="relative" ref={dropdownRef}>
+            <button
+              onClick={() => setDropdownOpen((o) => !o)}
+              className="focus:outline-none"
+              aria-label="User menu"
+            >
+              <Avatar name={displayName} size="md" />
+            </button>
+            {dropdownOpen && (
+              <div className="absolute right-0 top-10 bg-white border border-zinc-200 rounded-xl shadow-lg py-1 w-44 z-50">
+                <div className="px-4 py-2 text-sm font-semibold text-zinc-700 border-b border-zinc-100">
+                  {displayName}
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-left px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 cursor-pointer transition-colors"
+                >
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
+
           <button
             onClick={() => setMenuOpen((o) => !o)}
-            className="sm:hidden p-1.5 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+            className="sm:hidden p-1.5 rounded-lg text-zinc-500 hover:bg-zinc-100 transition-colors"
             aria-label="Toggle menu"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -64,23 +104,21 @@ export default function Navbar() {
       </div>
 
       {menuOpen && (
-        <div className="sm:hidden border-t border-gray-100 bg-white px-4 py-3 space-y-1">
+        <div className="sm:hidden border-t border-zinc-100 bg-white">
           {navLinks.map((l) => (
             <NavLink
               key={l.to}
               to={l.to}
               onClick={() => setMenuOpen(false)}
               className={({ isActive }) =>
-                `block py-2 text-sm ${isActive ? 'text-indigo-600 font-semibold' : 'text-gray-600'}`
+                `block px-4 py-3 text-sm font-medium border-b border-zinc-100 transition-colors ${
+                  isActive ? 'text-indigo-700 bg-indigo-50' : 'text-zinc-700 hover:bg-zinc-50'
+                }`
               }
             >
               {l.label}
             </NavLink>
           ))}
-          <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
-            <span className="text-sm text-gray-500">{profile?.displayName}</span>
-            <button onClick={handleLogout} className="text-sm text-red-500">Logout</button>
-          </div>
         </div>
       )}
     </nav>

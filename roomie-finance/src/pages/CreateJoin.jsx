@@ -55,18 +55,29 @@ export default function CreateJoin() {
     }
   }
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-md p-8">
-        <h1 className="text-2xl font-bold text-gray-800 mb-6 text-center">Get started</h1>
+  const inputClass = 'w-full bg-zinc-50 border border-zinc-200 rounded-xl px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-150'
+  const labelClass = 'text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1.5 block'
 
-        <div className="flex rounded-lg bg-gray-100 p-1 mb-6">
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-zinc-100 via-white to-indigo-50 flex items-center justify-center px-4">
+      <div className="w-full max-w-sm bg-white rounded-3xl shadow-xl border border-zinc-100 p-8">
+        <div className="mb-6">
+          <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center mb-4">
+            <span className="text-white text-lg">🏠</span>
+          </div>
+          <p className="text-xl font-bold text-zinc-900">Set up your house</p>
+          <p className="text-sm text-zinc-400 mt-1">Create a new shared house or join one with an invite code.</p>
+        </div>
+
+        <div className="flex bg-zinc-100 rounded-xl p-1 mb-6">
           {['create', 'join'].map((t) => (
             <button
               key={t}
               onClick={() => switchTab(t)}
-              className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
-                tab === t ? 'bg-white shadow text-indigo-600' : 'text-gray-500 hover:text-gray-700'
+              className={`flex-1 py-2 text-sm rounded-lg transition-all text-center ${
+                tab === t
+                  ? 'bg-white font-semibold text-indigo-700 shadow-sm'
+                  : 'font-medium text-zinc-500 hover:text-zinc-700 cursor-pointer'
               }`}
             >
               {t === 'create' ? 'Create a House' : 'Join with a Code'}
@@ -75,28 +86,28 @@ export default function CreateJoin() {
         </div>
 
         {error && (
-          <p className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
+          <div className="bg-rose-50 border border-rose-200 text-rose-700 text-sm rounded-xl px-4 py-3 mb-4">
             {error}
-          </p>
+          </div>
         )}
 
         {tab === 'create' ? (
           <form onSubmit={handleCreate} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">House name</label>
+              <label className={labelClass}>House name</label>
               <input
                 type="text"
                 value={houseName}
                 onChange={(e) => { setHouseName(e.target.value); setError('') }}
                 required
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className={inputClass}
                 placeholder="e.g. The Loft"
               />
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-medium py-2 rounded-lg transition-colors"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 active:scale-[0.97] text-white font-semibold py-2.5 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Creating…' : 'Create House'}
             </button>
@@ -104,7 +115,7 @@ export default function CreateJoin() {
         ) : (
           <form onSubmit={handleJoin} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Invite code</label>
+              <label className={labelClass}>Invite code</label>
               <input
                 ref={codeInputRef}
                 type="text"
@@ -112,14 +123,14 @@ export default function CreateJoin() {
                 onChange={(e) => { setInviteInput(e.target.value.toUpperCase()); setError('') }}
                 required
                 maxLength={6}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-mono tracking-widest uppercase focus:outline-none focus:ring-2 focus:ring-indigo-400"
-                placeholder="XXXXXX"
+                className={`${inputClass} text-center font-mono text-2xl tracking-[0.3em] uppercase py-3`}
+                placeholder="------"
               />
             </div>
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-medium py-2 rounded-lg transition-colors"
+              className="w-full bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 active:scale-[0.97] text-white font-semibold py-2.5 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Joining…' : 'Join House'}
             </button>

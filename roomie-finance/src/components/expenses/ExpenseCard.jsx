@@ -2,6 +2,18 @@ import { useCallback, useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useHouse } from '../../context/HouseContext'
 import { settleExpense } from '../../services/expenseService'
+import { formatRupee } from '../../utils/formatTime'
+import Avatar from '../ui/Avatar'
+import Badge from '../ui/Badge'
+
+function categoryIcon(title = '') {
+  const t = title.toLowerCase()
+  if (/groceries|food|lunch|dinner|restaurant/.test(t)) return '🛒'
+  if (/electricity|bill|power|internet|wifi/.test(t)) return '⚡'
+  if (/rent|flat|house/.test(t)) return '🏠'
+  if (/petrol|fuel|uber|cab|auto/.test(t)) return '🚗'
+  return '💸'
+}
 
 export default function ExpenseCard({ expense }) {
   const { user, profile } = useAuth()
@@ -34,40 +46,44 @@ export default function ExpenseCard({ expense }) {
     }
   }, [currentUserSettled, fullySettled, house.id, expense, user, profile])
 
-  const settleLabel = fullySettled
-    ? 'Settled'
-    : currentUserSettled
-    ? 'Awaiting others'
-    : 'Mark settled'
-
+  const settleLabel = fullySettled ? 'Settled' : currentUserSettled ? 'Awaiting others' : 'Mark settled'
   const settleDisabled = currentUserSettled || fullySettled || loading
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 px-4 py-3">
-      <div className="flex items-start justify-between gap-4">
+    <div className="relative bg-white rounded-2xl border border-zinc-200 p-4 shadow-sm hover:shadow-md transition-shadow duration-200">
+      <div className="flex items-start gap-3">
+        <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center text-lg flex-shrink-0">
+          {categoryIcon(expense.title)}
+        </div>
+
         <div className="flex-1 min-w-0">
-          <p className="font-medium text-gray-800 truncate">{expense.title}</p>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Paid by {payer?.displayName ?? 'Unknown'} · {expense.splitType} split
-          </p>
-          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-            {Object.entries(expense.splits ?? {}).map(([uid, share]) => (
-              <span key={uid} className="text-xs text-gray-500">
-                {membersMap[uid]?.displayName ?? 'Unknown'}: ₹{Number(share).toFixed(2)}
-              </span>
-            ))}
+          <p className="text-sm font-semibold text-zinc-900">{expense.title}</p>
+          <p className="text-xs text-zinc-500 mt-0.5">Paid by {payer?.displayName ?? 'Unknown'}</p>
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {Object.entries(expense.splits ?? {}).map(([uid, share]) => {
+              const name = membersMap[uid]?.displayName ?? 'Unknown'
+              return (
+                <div key={uid} className="flex items-center gap-1 bg-zinc-100 rounded-full px-2 py-0.5">
+                  <Avatar name={name} size="sm" />
+                  <span className="text-xs text-zinc-600">{name}</span>
+                  <span className="text-xs font-semibold text-zinc-800 ml-0.5">{formatRupee(share)}</span>
+                </div>
+              )
+            })}
           </div>
         </div>
+
         <div className="flex flex-col items-end gap-2 shrink-0">
-          <span className="text-base font-semibold text-indigo-600">₹{expense.amount.toFixed(2)}</span>
+          <p className="text-base font-bold tabular-nums text-zinc-900">{formatRupee(expense.amount)}</p>
+          <Badge variant="default">{expense.splitType}</Badge>
           <button
             onClick={handleSettle}
             disabled={settleDisabled}
-            className={`text-xs px-3 py-1 rounded-full border font-medium transition-colors ${
+            className={`text-xs px-3 py-1 rounded-full border font-medium transition-colors active:scale-[0.97] ${
               fullySettled
-                ? 'bg-green-100 text-green-600 border-green-200 cursor-default'
+                ? 'bg-emerald-100 text-emerald-600 border-emerald-200 cursor-default'
                 : currentUserSettled
-                ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-default'
+                ? 'bg-zinc-100 text-zinc-400 border-zinc-200 cursor-default'
                 : 'bg-white text-indigo-600 border-indigo-300 hover:bg-indigo-50'
             }`}
           >
@@ -75,7 +91,7 @@ export default function ExpenseCard({ expense }) {
           </button>
         </div>
       </div>
-      {error && <p className="mt-2 text-xs text-red-500">{error}</p>}
+      {error && <p className="mt-2 text-xs text-rose-500">{error}</p>}
     </div>
   )
 }

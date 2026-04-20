@@ -4,6 +4,7 @@ import { subscribeToExpenses } from '../services/expenseService'
 import Spinner from '../components/Spinner'
 import ExpenseCard from '../components/expenses/ExpenseCard'
 import AddExpenseForm from '../components/expenses/AddExpenseForm'
+import EmptyState from '../components/ui/EmptyState'
 
 export default function Expenses() {
   const { house } = useHouse()
@@ -21,25 +22,36 @@ export default function Expenses() {
   }, [house?.id])
 
   return (
-    <main className="max-w-2xl mx-auto px-4 py-8">
+    <main className="max-w-2xl mx-auto px-4 py-6 page-enter">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-bold text-gray-800">Expenses</h1>
+        <h1 className="text-2xl font-bold tracking-tight text-zinc-900">Expenses</h1>
         <button
           onClick={() => setFormOpen(true)}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 active:scale-[0.97] text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-all shadow-sm"
         >
-          + Add
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4" />
+          </svg>
+          Add
         </button>
       </div>
 
       {loadingExpenses ? (
         <Spinner />
       ) : expenses.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <p className="text-4xl mb-3">🧾</p>
-          <p className="font-medium text-gray-600">No expenses yet.</p>
-          <p className="text-sm mt-1">Add the first one.</p>
-        </div>
+        <EmptyState
+          icon="🧾"
+          title="No expenses yet"
+          subtitle="Add the first one to start tracking."
+          action={
+            <button
+              onClick={() => setFormOpen(true)}
+              className="bg-indigo-600 hover:bg-indigo-700 active:scale-[0.97] text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-all"
+            >
+              Add expense
+            </button>
+          }
+        />
       ) : (
         <div className="space-y-3">
           {expenses.map((expense) => (

@@ -1,3 +1,7 @@
+export function formatRupee(amount) {
+  return `₹${Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+}
+
 export function timeAgo(timestamp) {
   if (!timestamp) return ''
   const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp)

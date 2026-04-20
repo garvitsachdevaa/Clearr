@@ -1,4 +1,7 @@
 import { useEffect, useState } from 'react'
+import { formatRupee } from '../../utils/formatTime'
+
+const inputClass = 'bg-zinc-50 border border-zinc-200 rounded-xl px-3 py-1.5 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-150'
 
 function EqualTab({ members, totalAmount, onChange }) {
   const [checked, setChecked] = useState(() => members.map((m) => m.uid))
@@ -37,15 +40,15 @@ function EqualTab({ members, totalAmount, onChange }) {
               onChange={() => toggle(m.uid)}
               className="rounded text-indigo-600"
             />
-            <span className="text-sm text-gray-700">{m.displayName}</span>
+            <span className="text-sm text-zinc-700">{m.displayName}</span>
           </div>
           {checked.includes(m.uid) && (
-            <span className="text-sm text-gray-500">₹{share.toFixed(2)}</span>
+            <span className="text-sm text-zinc-500 tabular-nums">{formatRupee(share)}</span>
           )}
         </label>
       ))}
       {checked.length === 0 && (
-        <p className="text-xs text-red-500">Select at least one person.</p>
+        <p className="text-xs text-rose-500">Select at least one person.</p>
       )}
     </div>
   )
@@ -83,22 +86,22 @@ function ExactTab({ members, totalAmount, onChange }) {
     <div className="space-y-2">
       {members.map((m) => (
         <div key={m.uid} className="flex items-center justify-between gap-3">
-          <span className="text-sm text-gray-700 flex-1">{m.displayName}</span>
+          <span className="text-sm text-zinc-700 flex-1">{m.displayName}</span>
           <div className="flex items-center gap-1">
-            <span className="text-sm text-gray-400">₹</span>
+            <span className="text-sm text-zinc-400">₹</span>
             <input
               type="number"
               min="0"
               step="0.01"
               value={amounts[m.uid]}
               onChange={(e) => set(m.uid, e.target.value)}
-              className="w-24 border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              className={`w-24 ${inputClass}`}
               placeholder="0.00"
             />
           </div>
         </div>
       ))}
-      <div className={`text-xs pt-1 font-medium ${isOver || isUnder ? 'text-red-500' : 'text-green-600'}`}>
+      <div className={`text-xs pt-1 font-medium ${isOver || isUnder ? 'text-rose-500' : 'text-emerald-600'}`}>
         Total: ₹{sum.toFixed(2)} / ₹{totalAmount.toFixed(2)}
         {isOver && ' — over by ₹' + (sum - totalAmount).toFixed(2)}
         {isUnder && ' — ₹' + (totalAmount - sum).toFixed(2) + ' remaining'}
@@ -140,7 +143,7 @@ function PercentageTab({ members, totalAmount, onChange }) {
         const pct = parseFloat(percents[m.uid]) || 0
         return (
           <div key={m.uid} className="flex items-center justify-between gap-3">
-            <span className="text-sm text-gray-700 flex-1">{m.displayName}</span>
+            <span className="text-sm text-zinc-700 flex-1">{m.displayName}</span>
             <div className="flex items-center gap-1">
               <input
                 type="number"
@@ -149,20 +152,20 @@ function PercentageTab({ members, totalAmount, onChange }) {
                 step="0.01"
                 value={percents[m.uid]}
                 onChange={(e) => set(m.uid, e.target.value)}
-                className="w-20 border border-gray-300 rounded-lg px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                className={`w-20 ${inputClass}`}
                 placeholder="0"
               />
-              <span className="text-sm text-gray-400">%</span>
+              <span className="text-sm text-zinc-400">%</span>
             </div>
             {pct > 0 && (
-              <span className="text-xs text-gray-400 w-16 text-right">
+              <span className="text-xs text-zinc-400 w-16 text-right tabular-nums">
                 ₹{((pct / 100) * totalAmount).toFixed(2)}
               </span>
             )}
           </div>
         )
       })}
-      <div className={`text-xs pt-1 font-medium ${off ? 'text-red-500' : 'text-green-600'}`}>
+      <div className={`text-xs pt-1 font-medium ${off ? 'text-rose-500' : 'text-emerald-600'}`}>
         Total: {sum.toFixed(1)}% / 100%
         {off && (sum < 100 ? ` — ${(100 - sum).toFixed(1)}% remaining` : ` — over by ${(sum - 100).toFixed(1)}%`)}
       </div>
@@ -182,14 +185,16 @@ export default function SplitEditor({ members, totalAmount, splitType, onChange 
 
   return (
     <div>
-      <div className="flex rounded-lg bg-gray-100 p-1 mb-4">
+      <div className="flex bg-zinc-100 rounded-xl p-1 mb-4">
         {TABS.map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => handleTabChange(t)}
-            className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors capitalize ${
-              activeTab === t ? 'bg-white shadow text-indigo-600' : 'text-gray-500 hover:text-gray-700'
+            className={`flex-1 py-1.5 text-xs rounded-lg transition-all capitalize text-center ${
+              activeTab === t
+                ? 'bg-white font-semibold text-indigo-700 shadow-sm'
+                : 'font-medium text-zinc-500 cursor-pointer hover:text-zinc-700'
             }`}
           >
             {t}
@@ -197,15 +202,9 @@ export default function SplitEditor({ members, totalAmount, splitType, onChange 
         ))}
       </div>
 
-      {activeTab === 'equal' && (
-        <EqualTab members={members} totalAmount={totalAmount} onChange={onChange} />
-      )}
-      {activeTab === 'exact' && (
-        <ExactTab members={members} totalAmount={totalAmount} onChange={onChange} />
-      )}
-      {activeTab === 'percentage' && (
-        <PercentageTab members={members} totalAmount={totalAmount} onChange={onChange} />
-      )}
+      {activeTab === 'equal' && <EqualTab members={members} totalAmount={totalAmount} onChange={onChange} />}
+      {activeTab === 'exact' && <ExactTab members={members} totalAmount={totalAmount} onChange={onChange} />}
+      {activeTab === 'percentage' && <PercentageTab members={members} totalAmount={totalAmount} onChange={onChange} />}
     </div>
   )
 }
